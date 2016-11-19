@@ -3,28 +3,24 @@ package org.sporcic;
 import com.amazon.speech.json.SpeechletRequestEnvelope;
 import com.amazon.speech.speechlet.*;
 import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GetObjectRequest;
-import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3Object;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.amazon.speech.slu.Intent;
 import com.amazon.speech.ui.PlainTextOutputSpeech;
-import com.amazon.speech.ui.Reprompt;
 import com.amazon.speech.ui.SimpleCard;
 import twitter4j.Status;
+import twitter4j.StatusUpdate;
 import twitter4j.Twitter;
-import twitter4j.TwitterException;
 import twitter4j.TwitterFactory;
+import twitter4j.conf.Configuration;
 import twitter4j.conf.ConfigurationBuilder;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 
 public class CoffeeStatusSpeechlet implements SpeechletV2 {
 
@@ -90,7 +86,7 @@ public class CoffeeStatusSpeechlet implements SpeechletV2 {
 
         // Create the Simple card content.
         SimpleCard card = new SimpleCard();
-        card.setTitle("Coffee Status");
+        card.setTitle("Coffee Pot");
         card.setContent(speechText);
 
         // Create the plain text output.
@@ -104,7 +100,7 @@ public class CoffeeStatusSpeechlet implements SpeechletV2 {
 
         // Create the Simple card content.
         SimpleCard card = new SimpleCard();
-        card.setTitle("Coffee Status");
+        card.setTitle("Coffee Pot");
         String name;
 
         try {
@@ -132,7 +128,7 @@ public class CoffeeStatusSpeechlet implements SpeechletV2 {
 
         // Create the Simple card content.
         SimpleCard card = new SimpleCard();
-        card.setTitle("Coffee Status");
+        card.setTitle("Coffee Pot");
         card.setContent(speechText);
 
         // Create the plain text output.
@@ -145,27 +141,38 @@ public class CoffeeStatusSpeechlet implements SpeechletV2 {
     private String getNameFromBucket() throws IOException {
 
         log.info("Getting name for S3 Bucket {} using Key {}", BUCKET_NAME, ACCESS_KEY);
-        AmazonS3 s3Client = new AmazonS3Client(new BasicAWSCredentials(ACCESS_KEY, SECRET_KEY));
-        S3Object nameFile = s3Client.getObject(new GetObjectRequest(BUCKET_NAME, "last.txt"));
+        InputStream input = null;
 
-        BufferedReader reader = new BufferedReader(new InputStreamReader(nameFile.getObjectContent()));
-        StringBuilder builder = new StringBuilder();
+        try {
+            AmazonS3 s3Client = new AmazonS3Client(new BasicAWSCredentials(ACCESS_KEY, SECRET_KEY));
+            S3Object nameFile = s3Client.getObject(new GetObjectRequest(BUCKET_NAME, "last.txt"));
 
-        while (true) {
-            String line = reader.readLine();
-            if(line == null) {
-                break;
-            } else {
-                builder.append(line);
+            input = nameFile.getObjectContent();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(input));
+            StringBuilder builder = new StringBuilder();
+
+            while (true) {
+                String line = reader.readLine();
+                if(line == null) {
+                    break;
+                } else {
+                    builder.append(line);
+                }
+            }
+
+            reader.close();
+            return builder.toString();
+        } finally {
+            if(input != null) {
+                try { input.close(); } catch (Exception ignored) {}
             }
         }
-
-        return builder.toString();
     }
 
     private SpeechletResponse tweetTheShame() {
 
         String speechText = "It is done";
+        InputStream input = null;
 
         try {
             ConfigurationBuilder cb = new ConfigurationBuilder();
@@ -175,20 +182,31 @@ public class CoffeeStatusSpeechlet implements SpeechletV2 {
                     .setOAuthAccessToken(ACCESS_TOKEN)
                     .setOAuthAccessTokenSecret(ACCESS_TOKEN_SECRET);
 
-            TwitterFactory factory = new TwitterFactory(cb.build());
+            Configuration conf = cb.build();
+
+            TwitterFactory factory = new TwitterFactory(conf);
             Twitter twitter = factory.getInstance();
 
             String screenName = twitter.getScreenName();
             String shameName = getNameFromBucket();
 
             log.info("Shaming {} on Twitter from {}", shameName, screenName);
-            Status status = twitter.updateStatus(shameName + " took the last cup of coffee!");
+
+            input = getImage();
+
+            StatusUpdate update = new StatusUpdate(shameName + " took the last cup of coffee!");
+            update.setMedia(shameName + ".jpg", input);
+            Status status = twitter.updateStatus(update);
 
             log.info("Successfully update the status to [{}]", status.getText());
 
         } catch (Exception tex) {
             log.error("Failed to update Twitter status", tex);
             speechText = "Something went wrong";
+        } finally {
+            if(input != null) {
+                try { input.close(); } catch (Exception ignored) {}
+            }
         }
 
         SimpleCard card = new SimpleCard();
@@ -200,4 +218,15 @@ public class CoffeeStatusSpeechlet implements SpeechletV2 {
 
         return SpeechletResponse.newTellResponse(speech, card);
     }
+
+
+    private InputStream getImage() throws IOException {
+
+        log.info("Getting name for S3 Bucket {} using Key {}", BUCKET_NAME, ACCESS_KEY);
+        AmazonS3 s3Client = new AmazonS3Client(new BasicAWSCredentials(ACCESS_KEY, SECRET_KEY));
+        S3Object nameFile = s3Client.getObject(new GetObjectRequest(BUCKET_NAME, "last.jpg"));
+
+        return nameFile.getObjectContent();
+    }
+
 }
