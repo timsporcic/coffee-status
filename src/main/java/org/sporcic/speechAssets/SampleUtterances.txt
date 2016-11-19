@@ -1,0 +1,7 @@
+CoffeeStatusIntent who took the last cup of coffee
+CoffeeStatusIntent who took the last cup
+CoffeeStatusIntent who was the last person to get coffee
+CoffeeStatusIntent what jerk took the last cup
+CoffeeStatusIntent what jerk took the last cup of coffee
+ShameUserIntent to shame them
+ShameUserIntent shame them
