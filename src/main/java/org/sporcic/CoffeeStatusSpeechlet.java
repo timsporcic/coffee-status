@@ -194,7 +194,7 @@ public class CoffeeStatusSpeechlet implements SpeechletV2 {
 
             input = getImage();
 
-            StatusUpdate update = new StatusUpdate(shameName + " took the last cup of coffee!");
+            StatusUpdate update = new StatusUpdate(shameName + " took the last cup of coffee, and didn't make another pot!");
             update.setMedia(shameName + ".jpg", input);
             Status status = twitter.updateStatus(update);
 

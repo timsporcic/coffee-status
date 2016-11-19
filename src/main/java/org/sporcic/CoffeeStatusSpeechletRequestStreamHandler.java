@@ -9,12 +9,7 @@ public class CoffeeStatusSpeechletRequestStreamHandler extends SpeechletRequestS
     private static final Set<String> supportedApplicationIds = new HashSet<String>();
 
     static {
-        /*
-         * This Id can be found on https://developer.amazon.com/edw/home.html#/ "Edit" the relevant
-         * Alexa Skill and put the relevant Application Ids in this Set.
-         */
         String appId = System.getenv("APP_ID");
-
         supportedApplicationIds.add(appId);
     }
 
